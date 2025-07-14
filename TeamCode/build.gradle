@@ -31,19 +31,15 @@ android {
 repositories {
     mavenCentral()
     maven {
-        url = 'https://maven.zharel.me/releases'
-    }
-    maven {
         url = 'https://maven.brott.dev/'
     }
-    mavenLocal()
 }
 
 dependencies {
     implementation project(':FtcRobotController')
 
-    implementation "dev.nextftc.nextrunner:core:2.4.3"
-    implementation "dev.nextftc.nextrunner:actions:2.4.3"
-    implementation "dev.nextftc.nextrunner:ftc:2.4.3"
+    implementation "me.zharel.hermes:core:0.1.0"
+    implementation "me.zharel.hermes:actions:0.1.0"
+    implementation "me.zharel.hermes:ftc:0.1.0"
     implementation "com.acmerobotics.dashboard:dashboard:0.4.16"
 }
