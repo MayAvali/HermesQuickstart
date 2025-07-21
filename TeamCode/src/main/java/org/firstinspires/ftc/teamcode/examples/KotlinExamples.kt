@@ -2,7 +2,8 @@ package org.firstinspires.ftc.teamcode.examples
 
 import com.acmerobotics.roadrunner.actions.Action
 import com.acmerobotics.roadrunner.ftc.Follower
-import com.acmerobotics.roadrunner.ftc.runBlocking
+import com.acmerobotics.roadrunner.actions.ActionRunner
+import com.acmerobotics.roadrunner.ftc.DisplacementFollower
 import com.acmerobotics.roadrunner.geometry.Arclength
 import com.acmerobotics.roadrunner.geometry.Pose2d
 import com.acmerobotics.roadrunner.geometry.Vector2d
@@ -14,9 +15,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous
 import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
-import org.firstinspires.ftc.teamcode.DisplacementFollower
 import org.firstinspires.ftc.teamcode.MecanumDrive
-import org.firstinspires.ftc.teamcode.TimeFollower
 
 @Autonomous
 @Disabled
@@ -36,7 +35,7 @@ class ActionBuilderExampleKt: LinearOpMode() {
 
         waitForStart()
 
-        runBlocking(action)
+        ActionRunner.runBlocking(action)
     }
 }
 
@@ -55,7 +54,7 @@ class FollowerExampleKt: OpMode() {
             .splineTo(Vector2d(10.0, 10.0), Math.toRadians(90.0))
             .buildToComposite()
 
-        follower = TimeFollower(traj, drive)
+        follower = DisplacementFollower(traj, drive)
     }
 
     override fun loop() {

@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.tuning;
 
-import com.acmerobotics.roadrunner.ftc.Actions;
+import com.acmerobotics.roadrunner.actions.ActionRunner;
+import com.acmerobotics.roadrunner.actions.Actions;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.acmerobotics.roadrunner.geometry.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -17,7 +18,7 @@ public final class SplineTest extends LinearOpMode {
 
             waitForStart();
 
-            Actions.runBlocking(
+            ActionRunner.runBlocking(
                 drive.actionBuilder(beginPose)
                         .splineTo(new Vector2d(30, 30), Math.PI / 2)
                         .splineTo(new Vector2d(0, 60), Math.PI)
@@ -27,7 +28,7 @@ public final class SplineTest extends LinearOpMode {
 
             waitForStart();
 
-            Actions.runBlocking(
+            ActionRunner.runBlocking(
                     drive.actionBuilder(beginPose)
                             .splineTo(new Vector2d(30, 30), Math.PI / 2)
                             .splineTo(new Vector2d(0, 60), Math.PI)

@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.examples;
 
+import com.acmerobotics.roadrunner.ftc.DisplacementFollower;
 import com.acmerobotics.roadrunner.ftc.Follower;
 import com.acmerobotics.roadrunner.geometry.Arclength;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
@@ -10,7 +11,6 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.MecanumDrive;
-import org.firstinspires.ftc.teamcode.TimeFollower;
 
 @Autonomous
 @Disabled
@@ -26,7 +26,7 @@ public class FollowerExample extends OpMode {
                 .splineTo(new Vector2d(10.0, 10.0), Math.toRadians(90.0))
                 .buildToComposite();
 
-        follower = new TimeFollower(traj, drive);
+        follower = new DisplacementFollower(traj, drive);
     }
 
     @Override

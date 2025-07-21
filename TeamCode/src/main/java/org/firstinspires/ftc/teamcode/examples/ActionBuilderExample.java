@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.examples;
 
 import com.acmerobotics.roadrunner.actions.Action;
-import com.acmerobotics.roadrunner.ftc.Actions;
+import com.acmerobotics.roadrunner.actions.ActionRunner;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.acmerobotics.roadrunner.geometry.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -26,6 +26,6 @@ public class ActionBuilderExample extends LinearOpMode {
 
         waitForStart();
 
-        Actions.runBlocking(action);
+        ActionRunner.runBlocking(action);
     }
 }

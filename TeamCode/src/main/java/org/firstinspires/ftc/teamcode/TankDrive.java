@@ -10,29 +10,19 @@ import com.acmerobotics.roadrunner.control.RamseteController;
 import com.acmerobotics.roadrunner.control.RobotPosVelController;
 import com.acmerobotics.roadrunner.control.TankKinematics;
 import com.acmerobotics.roadrunner.control.WheelVelConstraint;
-import com.acmerobotics.roadrunner.ftc.DownsampledWriter;
-import com.acmerobotics.roadrunner.ftc.Drive;
-import com.acmerobotics.roadrunner.ftc.Encoder;
-import com.acmerobotics.roadrunner.ftc.FlightRecorder;
-import com.acmerobotics.roadrunner.ftc.FollowerParams;
-import com.acmerobotics.roadrunner.ftc.LazyHardwareMapImu;
-import com.acmerobotics.roadrunner.ftc.LazyImu;
-import com.acmerobotics.roadrunner.ftc.Localizer;
-import com.acmerobotics.roadrunner.ftc.LynxFirmware;
-import com.acmerobotics.roadrunner.ftc.OverflowEncoder;
-import com.acmerobotics.roadrunner.ftc.PoseMessage;
-import com.acmerobotics.roadrunner.ftc.PositionVelocityPair;
-import com.acmerobotics.roadrunner.ftc.RawEncoder;
-import com.acmerobotics.roadrunner.ftc.TankCommandMessage;
-import com.acmerobotics.roadrunner.ftc.TankLocalizerInputsMessage;
-import com.acmerobotics.roadrunner.ftc.TurnAction;
+import com.acmerobotics.roadrunner.ftc.*;
 import com.acmerobotics.roadrunner.geometry.DualNum;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.acmerobotics.roadrunner.geometry.PoseVelocity2d;
 import com.acmerobotics.roadrunner.geometry.PoseVelocity2dDual;
 import com.acmerobotics.roadrunner.geometry.Time;
-import com.acmerobotics.roadrunner.geometry.Twist2dDual;
-import com.acmerobotics.roadrunner.geometry.Vector2d;
+import com.acmerobotics.roadrunner.hardware.LazyHardwareMapImu;
+import com.acmerobotics.roadrunner.hardware.LazyImu;
+import com.acmerobotics.roadrunner.hardware.LynxFirmware;
+import com.acmerobotics.roadrunner.logs.DownsampledWriter;
+import com.acmerobotics.roadrunner.logs.FlightRecorder;
+import com.acmerobotics.roadrunner.logs.TankCommandMessage;
+import com.acmerobotics.roadrunner.logs.PoseMessage;
 import com.acmerobotics.roadrunner.profiles.AccelConstraint;
 import com.acmerobotics.roadrunner.profiles.AngularVelConstraint;
 import com.acmerobotics.roadrunner.profiles.MinVelConstraint;
@@ -152,117 +142,6 @@ public final class TankDrive implements Drive {
 
     private final DownsampledWriter tankCommandWriter = new DownsampledWriter("TANK_COMMAND", 50_000_000);
 
-    public class DriveLocalizer implements Localizer {
-        public final List<Encoder> leftEncs, rightEncs;
-        private Pose2d pose;
-
-        private double lastLeftPos, lastRightPos;
-        private boolean initialized;
-        private ArrayDeque<Pose2d> poseHistory = new ArrayDeque<>();
-
-        public DriveLocalizer(Pose2d pose) {
-            {
-                List<Encoder> leftEncs = new ArrayList<>();
-                for (DcMotorEx m : leftMotors) {
-                    Encoder e = new OverflowEncoder(new RawEncoder(m));
-                    leftEncs.add(e);
-                }
-                this.leftEncs = Collections.unmodifiableList(leftEncs);
-            }
-
-            {
-                List<Encoder> rightEncs = new ArrayList<>();
-                for (DcMotorEx m : rightMotors) {
-                    Encoder e = new OverflowEncoder(new RawEncoder(m));
-                    rightEncs.add(e);
-                }
-                this.rightEncs = Collections.unmodifiableList(rightEncs);
-            }
-
-            // TODO: reverse encoder directions if needed
-            //   leftEncs.get(0).setDirection(DcMotorSimple.Direction.REVERSE);
-
-            this.pose = pose;
-        }
-
-        @Override
-        public void setPose(Pose2d pose) {
-            this.pose = pose;
-        }
-
-        @Override
-        public Pose2d getPose() {
-            return pose;
-        }
-
-        @Override
-        public ArrayList<Pose2d> getPoseHistory() {
-            return new ArrayList<>(poseHistory);
-        }
-
-        @Override
-        public PoseVelocity2d update() {
-            Twist2dDual<Time> delta;
-
-            List<PositionVelocityPair> leftReadings = new ArrayList<>(), rightReadings = new ArrayList<>();
-            double meanLeftPos = 0.0, meanLeftVel = 0.0;
-            for (Encoder e : leftEncs) {
-                PositionVelocityPair p = e.getPositionAndVelocity();
-                meanLeftPos += p.position;
-                meanLeftVel += p.velocity;
-                leftReadings.add(p);
-            }
-            meanLeftPos /= leftEncs.size();
-            meanLeftVel /= leftEncs.size();
-
-            double meanRightPos = 0.0, meanRightVel = 0.0;
-            for (Encoder e : rightEncs) {
-                PositionVelocityPair p = e.getPositionAndVelocity();
-                meanRightPos += p.position;
-                meanRightVel += p.velocity;
-                rightReadings.add(p);
-            }
-            meanRightPos /= rightEncs.size();
-            meanRightVel /= rightEncs.size();
-
-            FlightRecorder.write("TANK_LOCALIZER_INPUTS",
-                     new TankLocalizerInputsMessage(leftReadings, rightReadings));
-
-            if (!initialized) {
-                initialized = true;
-
-                lastLeftPos = meanLeftPos;
-                lastRightPos = meanRightPos;
-
-                return new PoseVelocity2d(new Vector2d(0.0, 0.0), 0.0);
-
-            }
-
-            Twist2dDual<Time> twist = kinematics.forward(new TankKinematics.TankWheelIncrements<>(
-                    new DualNum<Time>(new double[]{
-                            meanLeftPos - lastLeftPos,
-                            meanLeftVel
-                    }).times(PARAMS.inPerTick),
-                    new DualNum<Time>(new double[]{
-                            meanRightPos - lastRightPos,
-                            meanRightVel,
-                    }).times(PARAMS.inPerTick)
-            ));
-
-            lastLeftPos = meanLeftPos;
-            lastRightPos = meanRightPos;
-
-            pose = pose.plus(twist.value());
-
-            poseHistory.addFirst(pose);
-            if (poseHistory.size() > 100) {
-                poseHistory.removeLast();
-            }
-
-            return twist.velocity().value();
-        }
-    }
-
     public TankDrive(HardwareMap hardwareMap, Pose2d pose) {
         LynxFirmware.throwIfModulesAreOutdated(hardwareMap);
 
@@ -293,7 +172,9 @@ public final class TankDrive implements Drive {
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
 
-        localizer = new DriveLocalizer(pose);
+        localizer = new TankLocalizer(hardwareMap, kinematics, PARAMS.inPerTick)
+                .fromMotors(leftMotors, rightMotors)
+                .withInitialPose(pose);
 
         FlightRecorder.write("TANK_PARAMS", PARAMS);
     }
