@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.examples
+package org.firstinspires.ftc.teamcode.HermesFTC.examples
 
 import com.acmerobotics.roadrunner.actions.Action
 import com.acmerobotics.roadrunner.ftc.Follower
@@ -15,7 +15,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous
 import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
-import org.firstinspires.ftc.teamcode.MecanumDrive
+import org.firstinspires.ftc.teamcode.HermesFTC.MecanumDrive
 
 @Autonomous
 @Disabled
@@ -27,7 +27,10 @@ class ActionBuilderExampleKt: LinearOpMode() {
     lateinit var action: Action
 
     override fun runOpMode() {
-        drive = MecanumDrive(hardwareMap, Pose2d(0.0, 0.0, 0.0))
+        drive = MecanumDrive(
+            hardwareMap,
+            Pose2d(0.0, 0.0, 0.0)
+        )
         action = drive.actionBuilder()
             .forward(10.0)
             .splineTo(Vector2d(10.0, 10.0), Math.toRadians(90.0))
@@ -48,7 +51,10 @@ class FollowerExampleKt: OpMode() {
     private lateinit var follower: Follower
 
     override fun init() {
-        drive = MecanumDrive(hardwareMap, Pose2d(0.0, 0.0, 0.0))
+        drive = MecanumDrive(
+            hardwareMap,
+            Pose2d(0.0, 0.0, 0.0)
+        )
         val traj: Trajectory<Arclength> = drive.trajectoryBuilder()
             .forward(10.0)
             .splineTo(Vector2d(10.0, 10.0), Math.toRadians(90.0))
@@ -71,7 +77,10 @@ class PathObjectsExampleKt : OpMode() {
     private lateinit var follower: Follower
 
     override fun init() {
-        drive = MecanumDrive(hardwareMap, Pose2d(0.0, 0.0, 0.0))
+        drive = MecanumDrive(
+            hardwareMap,
+            Pose2d(0.0, 0.0, 0.0)
+        )
 
         val path1: PosePath = Line(
             Vector2d(0.0, 0.0),

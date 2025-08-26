@@ -1,14 +1,15 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.HermesFTC;
 
 import androidx.annotation.NonNull;
 
 import com.acmerobotics.dashboard.canvas.Canvas;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.roadrunner.actions.TrajectoryActionBuilder;
+import com.acmerobotics.roadrunner.ftc.TurnAction;
+import com.acmerobotics.roadrunner.control.HolonomicController;
+import com.acmerobotics.roadrunner.control.MecanumKinematics;
 import com.acmerobotics.roadrunner.control.MotorFeedforward;
-import com.acmerobotics.roadrunner.control.RamseteController;
 import com.acmerobotics.roadrunner.control.RobotPosVelController;
-import com.acmerobotics.roadrunner.control.TankKinematics;
 import com.acmerobotics.roadrunner.control.WheelVelConstraint;
 import com.acmerobotics.roadrunner.ftc.*;
 import com.acmerobotics.roadrunner.geometry.DualNum;
@@ -21,7 +22,7 @@ import com.acmerobotics.roadrunner.hardware.LazyImu;
 import com.acmerobotics.roadrunner.hardware.LynxFirmware;
 import com.acmerobotics.roadrunner.logs.DownsampledWriter;
 import com.acmerobotics.roadrunner.logs.FlightRecorder;
-import com.acmerobotics.roadrunner.logs.TankCommandMessage;
+import com.acmerobotics.roadrunner.logs.MecanumCommandMessage;
 import com.acmerobotics.roadrunner.logs.PoseMessage;
 import com.acmerobotics.roadrunner.profiles.AccelConstraint;
 import com.acmerobotics.roadrunner.profiles.AngularVelConstraint;
@@ -36,18 +37,15 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorImplEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
-import java.util.List;
 
 @Config
-public final class TankDrive implements Drive {
+public final class MecanumDrive implements Drive {
     public static class Params {
         // IMU orientation
         // TODO: fill in these values based on
@@ -58,7 +56,8 @@ public final class TankDrive implements Drive {
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
 
         // drive model parameters
-        public double inPerTick = 0;
+        public double inPerTick = 1;
+        public double lateralInPerTick = inPerTick;
         public double trackWidthTicks = 0;
 
         // feedforward parameters (in tick units)
@@ -76,17 +75,20 @@ public final class TankDrive implements Drive {
         public double maxAngAccel = Math.PI;
 
         // path controller gains
-        public double ramseteZeta = 0.7; // in the range (0, 1)
-        public double ramseteBBar = 2.0; // positive
+        public double axialGain = 0.0;
+        public double lateralGain = 0.0;
+        public double headingGain = 0.0; // shared with turn
 
-        // turn controller gains
-        public double turnGain = 0.0;
-        public double turnVelGain = 0.0;
+        public double axialVelGain = 0.0;
+        public double lateralVelGain = 0.0;
+        public double headingVelGain = 0.0; // shared with turn
     }
 
     public static Params PARAMS = new Params();
 
-    public final TankKinematics kinematics = new TankKinematics(PARAMS.inPerTick * PARAMS.trackWidthTicks);
+    public final MecanumKinematics kinematics = new MecanumKinematics(
+            PARAMS.inPerTick * PARAMS.trackWidthTicks, PARAMS.inPerTick / PARAMS.lateralInPerTick);
+
 
     public final TurnConstraints defaultTurnConstraints = new TurnConstraints(
             PARAMS.maxAngVel, -PARAMS.maxAngAccel, PARAMS.maxAngAccel);
@@ -106,14 +108,6 @@ public final class TankDrive implements Drive {
     public final AccelConstraint defaultAccelConstraint =
             new ProfileAccelConstraint(PARAMS.minProfileAccel, PARAMS.maxProfileAccel);
 
-    private final RamseteController ramseteController = new RamseteController(kinematics.trackWidth, PARAMS.ramseteZeta, PARAMS.ramseteBBar);
-
-    @NonNull
-    @Override
-    public RobotPosVelController getController() {
-        return ramseteController;
-    }
-
     public final FollowerParams followerParams = new FollowerParams(
             new ProfileParams(
                     0.25, 0.1, 1e-2
@@ -127,22 +121,22 @@ public final class TankDrive implements Drive {
         return followerParams;
     }
 
-    public final List<DcMotorEx> leftMotors, rightMotors;
-
-    public final LazyImu lazyImu;
+    public final DcMotorEx leftFront, leftBack, rightBack, rightFront;
 
     public final VoltageSensor voltageSensor;
 
+    public final LazyImu lazyImu;
+
     public final Localizer localizer;
+    public final HolonomicController controller;
     private final LinkedList<Pose2d> poseHistory = new LinkedList<>();
 
     private final DownsampledWriter estimatedPoseWriter = new DownsampledWriter("ESTIMATED_POSE", 50_000_000);
     private final DownsampledWriter targetPoseWriter = new DownsampledWriter("TARGET_POSE", 50_000_000);
     private final DownsampledWriter driveCommandWriter = new DownsampledWriter("DRIVE_COMMAND", 50_000_000);
+    private final DownsampledWriter mecanumCommandWriter = new DownsampledWriter("MECANUM_COMMAND", 50_000_000);
 
-    private final DownsampledWriter tankCommandWriter = new DownsampledWriter("TANK_COMMAND", 50_000_000);
-
-    public TankDrive(HardwareMap hardwareMap, Pose2d pose) {
+    public MecanumDrive(HardwareMap hardwareMap, Pose2d pose) {
         LynxFirmware.throwIfModulesAreOutdated(hardwareMap);
 
         for (LynxModule module : hardwareMap.getAll(LynxModule.class)) {
@@ -150,20 +144,19 @@ public final class TankDrive implements Drive {
         }
 
         // TODO: make sure your config has motors with these names (or change them)
-        //   add additional motors on each side if you have them
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
-        leftMotors = Arrays.asList(hardwareMap.get(DcMotorEx.class, "left"));
-        rightMotors = Arrays.asList(hardwareMap.get(DcMotorEx.class, "right"));
+        leftFront = hardwareMap.get(DcMotorEx.class, "leftFront");
+        leftBack = hardwareMap.get(DcMotorEx.class, "leftBack");
+        rightBack = hardwareMap.get(DcMotorEx.class, "rightBack");
+        rightFront = hardwareMap.get(DcMotorImplEx.class, "rightFront");
 
-        for (DcMotorEx m : leftMotors) {
-            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        }
-        for (DcMotorEx m : rightMotors) {
-            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        }
+        leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // TODO: reverse motor directions if needed
-        //   leftMotors.get(0).setDirection(DcMotorSimple.Direction.REVERSE);
+        //   leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
 
         // TODO: make sure your config has an IMU with this name (can be BNO or BHI)
         //   see https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/index.html
@@ -172,11 +165,16 @@ public final class TankDrive implements Drive {
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
 
-        localizer = new TankLocalizer(hardwareMap, kinematics, PARAMS.inPerTick)
-                .fromMotors(leftMotors, rightMotors)
+        localizer = new MecanumDriveLocalizer(hardwareMap, PARAMS.inPerTick, lazyImu.get(), kinematics)
+                .fromMotors(leftFront, leftBack, rightFront, rightBack)
                 .withInitialPose(pose);
 
-        FlightRecorder.write("TANK_PARAMS", PARAMS);
+        controller = new HolonomicController(
+                PARAMS.axialGain, PARAMS.lateralGain, PARAMS.headingGain,
+                PARAMS.axialVelGain, PARAMS.lateralVelGain, PARAMS.headingVelGain
+        );
+
+        FlightRecorder.write("MECANUM_PARAMS", PARAMS);
     }
 
     @Override
@@ -185,20 +183,22 @@ public final class TankDrive implements Drive {
     }
 
     @Override
+    public RobotPosVelController getController() {
+        return controller;
+    }
+
     public void setDrivePowers(PoseVelocity2dDual<Time> powers) {
-        TankKinematics.TankWheelVelocities<Time> wheelVels = new TankKinematics(2).inverse(powers);
+        MecanumKinematics.MecanumWheelVelocities<Time> wheelVels = new MecanumKinematics(1).inverse(powers);
 
         double maxPowerMag = 1;
         for (DualNum<Time> power : wheelVels.all()) {
             maxPowerMag = Math.max(maxPowerMag, power.value());
         }
 
-        for (DcMotorEx m : leftMotors) {
-            m.setPower(wheelVels.left.get(0) / maxPowerMag);
-        }
-        for (DcMotorEx m : rightMotors) {
-            m.setPower(wheelVels.right.get(0) / maxPowerMag);
-        }
+        leftFront.setPower(wheelVels.leftFront.get(0) / maxPowerMag);
+        leftBack.setPower(wheelVels.leftBack.get(0) / maxPowerMag);
+        rightBack.setPower(wheelVels.rightBack.get(0) / maxPowerMag);
+        rightFront.setPower(wheelVels.rightFront.get(0) / maxPowerMag);
     }
 
     @Override
@@ -208,20 +208,23 @@ public final class TankDrive implements Drive {
 
     @Override
     public void setDrivePowersWithFF(PoseVelocity2dDual<Time> powers) {
-        TankKinematics.TankWheelVelocities<Time> wheelVels = kinematics.inverse(powers);
+        MecanumKinematics.MecanumWheelVelocities<Time> wheelVels = kinematics.inverse(powers);
         double voltage = voltageSensor.getVoltage();
+
         final MotorFeedforward feedforward = new MotorFeedforward(PARAMS.kS,
                 PARAMS.kV / PARAMS.inPerTick, PARAMS.kA / PARAMS.inPerTick);
-        double leftPower = feedforward.compute(wheelVels.left) / voltage;
-        double rightPower = feedforward.compute(wheelVels.right) / voltage;
-        tankCommandWriter.write(new TankCommandMessage(voltage, leftPower, rightPower));
+        double leftFrontPower = feedforward.compute(wheelVels.leftFront) / voltage;
+        double leftBackPower = feedforward.compute(wheelVels.leftBack) / voltage;
+        double rightBackPower = feedforward.compute(wheelVels.rightBack) / voltage;
+        double rightFrontPower = feedforward.compute(wheelVels.rightFront) / voltage;
+        mecanumCommandWriter.write(new MecanumCommandMessage(
+                voltage, leftFrontPower, leftBackPower, rightBackPower, rightFrontPower
+        ));
 
-        for (DcMotorEx m : leftMotors) {
-            m.setPower(leftPower);
-        }
-        for (DcMotorEx m : rightMotors) {
-            m.setPower(rightPower);
-        }
+        leftFront.setPower(leftFrontPower);
+        leftBack.setPower(leftBackPower);
+        rightBack.setPower(rightBackPower);
+        rightFront.setPower(rightFrontPower);
     }
 
     @Override
@@ -232,14 +235,14 @@ public final class TankDrive implements Drive {
     public PoseVelocity2d updatePoseEstimate() {
         PoseVelocity2d vel = localizer.update();
         poseHistory.add(localizer.getPose());
-
+        
         while (poseHistory.size() > 100) {
             poseHistory.removeFirst();
         }
 
         estimatedPoseWriter.write(new PoseMessage(localizer.getPose()));
-
-
+        
+        
         return vel;
     }
 
@@ -269,9 +272,7 @@ public final class TankDrive implements Drive {
                 ),
                 new TrajectoryBuilderParams(
                         1e-6,
-                        new ProfileParams(
-                                0.25, 0.1, 1e-2
-                        )
+                        followerParams.profileParams
                 ),
                 beginPose, 0.0,
                 defaultTurnConstraints,
@@ -294,5 +295,10 @@ public final class TankDrive implements Drive {
                 defaultVelConstraint,
                 defaultAccelConstraint
         );
+    }
+
+    @Override
+    public TrajectoryBuilder trajectoryBuilder() {
+        return trajectoryBuilder(localizer.getPose());
     }
 }

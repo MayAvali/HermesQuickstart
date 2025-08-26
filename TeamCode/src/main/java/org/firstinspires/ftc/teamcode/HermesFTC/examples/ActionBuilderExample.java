@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.examples;
+package org.firstinspires.ftc.teamcode.HermesFTC.examples;
 
 import com.acmerobotics.roadrunner.actions.Action;
 import com.acmerobotics.roadrunner.actions.ActionRunner;
@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
-import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.teamcode.HermesFTC.MecanumDrive;
 
 @Autonomous
 @Disabled

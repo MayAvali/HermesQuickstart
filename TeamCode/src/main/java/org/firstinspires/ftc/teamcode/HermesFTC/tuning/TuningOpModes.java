@@ -1,6 +1,4 @@
-package org.firstinspires.ftc.teamcode.tuning;
-
-import androidx.annotation.NonNull;
+package org.firstinspires.ftc.teamcode.HermesFTC.tuning;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.reflection.ReflectionConfig;
@@ -9,17 +7,14 @@ import com.acmerobotics.roadrunner.ftc.*;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.acmerobotics.roadrunner.hardware.*;
 import com.acmerobotics.roadrunner.tuning.*;
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.OpModeManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpModeRegistrar;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 import org.firstinspires.ftc.robotcore.internal.opmode.OpModeMeta;
-import org.firstinspires.ftc.teamcode.MecanumDrive;
-import org.firstinspires.ftc.teamcode.TankDrive;
+import org.firstinspires.ftc.teamcode.HermesFTC.MecanumDrive;
+import org.firstinspires.ftc.teamcode.HermesFTC.TankDrive;
 
 import java.util.ArrayList;
 import java.util.Arrays;
