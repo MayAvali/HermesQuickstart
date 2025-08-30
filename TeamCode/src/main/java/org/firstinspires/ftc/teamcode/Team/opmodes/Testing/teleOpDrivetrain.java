@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.Team.opmodes.Testing;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.IMU;
 
-import org.firstinspires.ftc.teamcode.team.subsystems.MecanumDrive;
+import org.firstinspires.ftc.teamcode.Team.subsystems.MecanumDrive;
 
 @com.qualcomm.robotcore.eventloop.opmode.TeleOp(name = "TeleOpDrivetrain", group = "Linear OpMode")
 public class teleOpDrivetrain extends LinearOpMode {
